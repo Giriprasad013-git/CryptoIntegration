@@ -19,7 +19,7 @@ namespace CryptoDepositApp.Services
     public class CryptoService : ICryptoService
     {
         // In-memory storage of transactions
-        private readonly List<Transaction> _transactions = [];
+        private readonly List<Transaction> _transactions = new();
         
         // Mock deposit addresses for different networks (in a real implementation these would be generated)
         private readonly Dictionary<(TokenType, Network), string> _depositAddresses = new Dictionary<(TokenType, Network), string>
