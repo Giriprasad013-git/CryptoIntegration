@@ -1,0 +1,109 @@
+USDT Deposit Interface & User Flow Guide
+
+Overview
+
+This document outlines the user interface and step-by-step flow for depositing with USDT (Tether) across Polygon, Tron, and Ethereum networks on the platform.
+
+
+---
+
+1. Accessing the Deposit Interface
+
+Users navigate to the Deposit section within the platform.
+
+A banner ensures financial privacy, stating that there will be no mention of poker-related activity in bank statements.
+
+
+
+---
+
+2. Token & Network Selection
+
+Users are presented with a selection interface to:
+
+Choose the Token (e.g., USDT or USDC).
+
+Select the Network associated with the token (e.g., Polygon POS, TRON, Ethereum).
+
+
+Example Token Options:
+
+USDT (Polygon POS)
+
+USDT (Tron)
+
+USDT (Ethereum)
+
+---
+
+3. Entering Deposit Amount
+
+Users input or tap preset buttons to quickly select a deposit amount: $25, $50, $100, $500.
+
+
+---
+
+4. Generating Deposit Details
+
+Once the amount and token/network are selected:
+
+The system displays:
+
+Amount in USDT required for the selected network.
+
+Exchange Rate between USDT and USD.
+
+Deposit Address specific to the selected network (e.g., Ethereum, Polygon, Tron).
+
+Transaction Status as “Awaiting Payment”.
+
+Transaction ID (TXID) is reserved and shown once transaction is processed.
+
+
+
+
+---
+
+5. Important Notes Displayed to Users
+
+A caution message highlights:
+
+A new cashier request is required for each deposit.
+
+Users must ensure correctness of:
+
+Wallet address
+
+Token type
+
+Blockchain network
+
+
+Transactions sent to the wrong address or chain cannot be recovered.
+
+Additional fees may apply if recovery is requested (if applicable).
+
+
+
+---
+
+6. Deposit Completion
+
+Users must transfer the correct amount of USDT to the provided address on the specified network.
+
+Once detected on-chain, the system marks the transaction as completed and credits the user account.
+
+
+
+---
+
+Network-Specific Notes
+
+
+---
+
+Summary
+
+This interface ensures a streamlined deposit experience with strong privacy features and network flexibility. Users are guided clearly through each step—from token selection to deposit confirmation—with key warnings to prevent transaction errors.
+
+

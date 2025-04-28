@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f9f9f9;
+  color: #333;
+}
+
+.bg-natural8 {
+  background-color: #0D1E23;
+}
+
+.bg-alert {
+  background-color: rgba(220, 250, 220, 0.5);
+}
+
+.text-natural8 {
+  color: #1E4942;
+}
+
+.border-natural8 {
+  border-color: #1E4942;
+}
+
+.btn-natural8 {
+  @apply bg-natural8 text-white py-3 px-4 rounded-md hover:bg-opacity-90 transition-all;
+}
+
+.amount-button {
+  @apply text-natural8 border border-natural8 rounded-md py-2 px-3 hover:bg-natural8 hover:text-white transition-all;
+}
+
+.dropdown-item {
+  @apply flex items-center py-2 px-4 hover:bg-gray-100 cursor-pointer;
+}

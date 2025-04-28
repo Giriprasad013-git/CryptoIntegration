@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Crypto Deposit App" />
+  <title>Crypto Deposit App</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .app-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .main-content {
+      flex-grow: 1;
+      padding: 1rem;
+      max-width: 28rem;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+    }
+    .header {
+      background-color: #0D1E23;
+      color: white;
+      padding: 1rem;
+    }
+    .tabs {
+      display: flex;
+      justify-content: center;
+    }
+    .tab {
+      padding: 0.5rem 1rem;
+      margin: 0 0.5rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active {
+      border-bottom-color: white;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+    }
+    .input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 0.25rem;
+      box-sizing: border-box;
+    }
+    .button {
+      background-color: #0D1E23;
+      color: white;
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      width: 100%;
+      font-size: 1rem;
+    }
+    .button:hover {
+      opacity: 0.9;
+    }
+    h2 {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background-color: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('deposit')">Deposit</div>
+        <div class="tab" onclick="switchTab('withdrawal')">Withdrawal</div>
+      </div>
+    </header>
+    <main class="main-content">
+      <div id="deposit-tab" class="card">
+        <h2>Deposit Crypto</h2>
+        <div class="form-group">
+          <label class="label">Network</label>
+          <select class="input" id="deposit-network">
+            <option value="ethereum">Ethereum</option>
+            <option value="polygon">Polygon</option>
+            <option value="tron">Tron</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Token</label>
+          <select class="input" id="deposit-token">
+            <option value="usdt">USDT</option>
+            <option value="usdc">USDC</option>
+          </select>
+        </div>
+        <button class="button" onclick="generateDepositAddress()">Generate Deposit Address</button>
+
+        <div id="deposit-result" style="display: none; margin-top: 1.5rem;">
+          <div class="form-group">
+            <label class="label">Your Deposit Address</label>
+            <div style="display: flex; align-items: center;">
+              <input class="input" type="text" id="deposit-address" readonly style="flex-grow: 1; margin-right: 0.5rem;" />
+              <button class="button" style="width: auto; padding: 0.5rem;" onclick="copyAddress()">Copy</button>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 1rem;">
+            <p>Send only <span id="selected-token">USDT</span> to this address on the <span id="selected-network">Ethereum</span> network</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="withdrawal-tab" class="card" style="display: none;">
+        <h2>Withdraw Crypto</h2>
+        <div class="form-group">
+          <label class="label">Network</label>
+          <select class="input" id="withdraw-network">
+            <option value="ethereum">Ethereum</option>
+            <option value="polygon">Polygon</option>
+            <option value="tron">Tron</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Token</label>
+          <select class="input" id="withdraw-token">
+            <option value="usdt">USDT</option>
+            <option value="usdc">USDC</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Destination Address</label>
+          <input class="input" type="text" id="withdraw-address" placeholder="Enter wallet address" />
+        </div>
+        <div class="form-group">
+          <label class="label">Amount</label>
+          <input class="input" type="text" id="withdraw-amount" placeholder="0.00" />
+        </div>
+        <button class="button" onclick="processWithdrawal()">Withdraw</button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Simple front-end functionality
+    function switchTab(tab) {
+      if (tab === 'deposit') {
+        document.getElementById('deposit-tab').style.display = 'block';
+        document.getElementById('withdrawal-tab').style.display = 'none';
+        document.querySelector('.tab:first-child').classList.add('active');
+        document.querySelector('.tab:last-child').classList.remove('active');
+      } else {
+        document.getElementById('deposit-tab').style.display = 'none';
+        document.getElementById('withdrawal-tab').style.display = 'block';
+        document.querySelector('.tab:first-child').classList.remove('active');
+        document.querySelector('.tab:last-child').classList.add('active');
+      }
+    }
+
+    async function generateDepositAddress() {
+      const network = document.getElementById('deposit-network').value;
+      const token = document.getElementById('deposit-token').value;
+      
+      try {
+        // In a real app, this would be an API call to the backend
+        const response = await fetch(`/api/crypto/depositAddress?network=${network}&token=${token}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          document.getElementById('deposit-address').value = data.address;
+          document.getElementById('selected-token').textContent = token.toUpperCase();
+          document.getElementById('selected-network').textContent = network.charAt(0).toUpperCase() + network.slice(1);
+          document.getElementById('deposit-result').style.display = 'block';
+        } else {
+          alert(`Error: ${data.message || 'Could not generate deposit address'}`);
+        }
+      } catch (error) {
+        console.error('Error generating deposit address:', error);
+        alert('Failed to connect to the server. Please try again later.');
+      }
+    }
+
+    function copyAddress() {
+      const addressInput = document.getElementById('deposit-address');
+      addressInput.select();
+      document.execCommand('copy');
+      
+      // Show a temporary "Copied!" notification
+      const originalText = document.querySelector('.button[onclick="copyAddress()"]').textContent;
+      document.querySelector('.button[onclick="copyAddress()"]').textContent = 'Copied!';
+      setTimeout(() => {
+        document.querySelector('.button[onclick="copyAddress()"]').textContent = originalText;
+      }, 2000);
+    }
+
+    async function processWithdrawal() {
+      const network = document.getElementById('withdraw-network').value;
+      const token = document.getElementById('withdraw-token').value;
+      const address = document.getElementById('withdraw-address').value;
+      const amount = document.getElementById('withdraw-amount').value;
+      
+      if (!address || !amount) {
+        alert('Please enter a destination address and amount');
+        return;
+      }
+      
+      try {
+        // In a real app, this would be an API call to the backend
+        const response = await fetch('/api/crypto/withdraw', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ network, token, address, amount })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert(`Withdrawal processed! Transaction ID: ${data.transactionId}`);
+        } else {
+          alert(`Error: ${data.message || 'Could not process withdrawal'}`);
+        }
+      } catch (error) {
+        console.error('Error processing withdrawal:', error);
+        alert('Failed to connect to the server. Please try again later.');
+      }
+    }
+  </script>
+</body>
+</html>
