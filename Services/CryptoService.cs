@@ -14,13 +14,14 @@ namespace CryptoDepositApp.Services
         Task<Transaction> GetTransaction(Guid id);
         Task<decimal> GetAvailableBalance();
         string GenerateDepositAddress(TokenType token, Network network);
+        Task<bool> IsNetworkOperational(Network network);
     }
 
     public class CryptoService : ICryptoService
     {
         // In-memory storage of transactions
         private readonly List<Transaction> _transactions = new();
-        
+
         // Mock deposit addresses for different networks (in a real implementation these would be generated)
         private readonly Dictionary<(TokenType, Network), string> _depositAddresses = new Dictionary<(TokenType, Network), string>
         {
@@ -34,6 +35,9 @@ namespace CryptoDepositApp.Services
 
         // Mock initial balance for demo purposes
         private decimal _userBalance = 1587.44m;
+        // Placeholder for contract address - replace with actual address
+        private const string USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+
 
         public CryptoService()
         {
@@ -42,8 +46,34 @@ namespace CryptoDepositApp.Services
             // Intentionally left empty to avoid mocked data in production
         }
 
+        public async Task<bool> IsNetworkOperational(Network network)
+        {
+            try {
+                switch(network) {
+                    case Network.Ethereum:
+                    case Network.PolygonPOS:
+                        // Replace with actual Ethereum service implementation
+                        var ethService = new EthereumService(null, null); // Requires proper initialization
+                        return await ethService.GetBalance("0x0000000000000000000000000000000000000000", network.ToString()) != null;
+                    case Network.Tron:
+                        // Replace with actual Tron service implementation
+                        var tronService = new TronService(null, null, null); // Requires proper initialization
+                        return await tronService.GetTokenBalance("TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW", USDT_CONTRACT_ADDRESS) >= 0;
+                    default:
+                        return false;
+                }
+            }
+            catch {
+                return false;
+            }
+        }
+
         public async Task<Transaction> CreateDepositRequest(DepositRequest request)
         {
+            if (!await IsNetworkOperational(request.Network))
+            {
+                throw new InvalidOperationException($"Network {request.Network} is currently unavailable.");
+            }
             var transaction = new Transaction
             {
                 Type = TransactionType.Deposit,
@@ -79,7 +109,7 @@ namespace CryptoDepositApp.Services
 
             _transactions.Add(transaction);
             _userBalance -= request.Amount;
-            
+
             return await Task.FromResult(transaction);
         }
 
@@ -106,7 +136,7 @@ namespace CryptoDepositApp.Services
             {
                 return address;
             }
-            
+
             // Fallback to a random address if not found
             return $"0x{Guid.NewGuid().ToString().Replace("-", "").Substring(0, 40)}";
         }

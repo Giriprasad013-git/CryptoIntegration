@@ -24,10 +24,17 @@ namespace CryptoDepositApp.Controllers
         }
 
         [HttpPost("deposit")]
+        [EnableRateLimiting("fixed")]
         public async Task<ActionResult<Transaction>> CreateDeposit(DepositRequest request)
         {
             try
             {
+                // Validate network status
+                if (!await _cryptoService.IsNetworkOperational(request.Network))
+                {
+                    return StatusCode(503, new { message = "Selected network is currently unavailable" });
+                }
+
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
@@ -103,12 +110,12 @@ namespace CryptoDepositApp.Controllers
             try
             {
                 var transaction = await _cryptoService.GetTransaction(id);
-                
+
                 if (transaction == null)
                 {
                     return NotFound(new { message = "Transaction not found." });
                 }
-                
+
                 return Ok(transaction);
             }
             catch (Exception ex)
@@ -117,7 +124,7 @@ namespace CryptoDepositApp.Controllers
                 return StatusCode(500, new { message = "An error occurred while retrieving the transaction." });
             }
         }
-        
+
         [HttpGet("depositAddress")]
         public async Task<ActionResult> GenerateDepositAddress([FromQuery] string network, [FromQuery] string token)
         {
@@ -127,21 +134,21 @@ namespace CryptoDepositApp.Controllers
                 {
                     return BadRequest(new { message = "Network and token are required." });
                 }
-                
+
                 // Validate network and token
                 if (!new[] { "ethereum", "polygon", "tron" }.Contains(network.ToLower()))
                 {
                     return BadRequest(new { message = "Invalid network. Supported networks are Ethereum, Polygon, and Tron." });
                 }
-                
+
                 if (!new[] { "usdt", "usdc" }.Contains(token.ToLower()))
                 {
                     return BadRequest(new { message = "Invalid token. Supported tokens are USDT and USDC." });
                 }
-                
+
                 // Generate a deposit address using the appropriate service
                 string address;
-                
+
                 try
                 {
                     if (network.ToLower() == "tron")
@@ -160,12 +167,12 @@ namespace CryptoDepositApp.Controllers
                     _logger.LogError(ex, "Error generating deposit address for {Network} {Token}", network, token);
                     return StatusCode(500, new { message = "Failed to generate deposit address. Please try again later." });
                 }
-                
+
                 if (string.IsNullOrEmpty(address))
                 {
                     return StatusCode(500, new { message = "Failed to generate a valid deposit address." });
                 }
-                
+
                 return Ok(new { address, network, token = token.ToUpper() });
             }
             catch (Exception ex)
