@@ -1,144 +1,172 @@
+
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using CryptoDepositApp.Models;
+using NBitcoin;
+using Nethereum.Web3;
+using Nethereum.HdWallet;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace CryptoDepositApp.Services
 {
-    public interface ICryptoService
-    {
-        Task<Transaction> CreateDepositRequest(DepositRequest request);
-        Task<Transaction> CreateWithdrawalRequest(WithdrawalRequest request);
-        Task<IEnumerable<Transaction>> GetUserTransactions();
-        Task<Transaction> GetTransaction(Guid id);
-        Task<decimal> GetAvailableBalance();
-        string GenerateDepositAddress(TokenType token, Network network);
-        Task<bool> IsNetworkOperational(Network network);
-    }
-
     public class CryptoService : ICryptoService
     {
-        // In-memory storage of transactions
-        private readonly List<Transaction> _transactions = new();
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<CryptoService> _logger;
+        private readonly Web3 _web3;
+        private readonly Wallet _wallet;
+        private readonly Dictionary<Network, string> _rpcUrls;
 
-        // Mock deposit addresses for different networks (in a real implementation these would be generated)
-        private readonly Dictionary<(TokenType, Network), string> _depositAddresses = new Dictionary<(TokenType, Network), string>
+        public CryptoService(IConfiguration configuration, ILogger<CryptoService> logger)
         {
-            { (TokenType.USDT, Network.PolygonPOS), "0x490d1ac37173746cf0e1207baebe2cb55a3de351" },
-            { (TokenType.USDT, Network.Tron), "TXu9xgKVtoXiZiJGNRxoJB1nAaYRTrNrqQ" },
-            { (TokenType.USDT, Network.Ethereum), "0x3e465106053762319F29C2de564bD921D9AF6d22" },
-            { (TokenType.USDT, Network.BEP20), "0x8936cE4f0668DD58fE1B498b12A0aA6c9D4AB772" },
-            { (TokenType.USDC, Network.PolygonPOS), "0x982746cF23E9129CD08A24d8DB0A9D3D84F33B6F" },
-            { (TokenType.USDC, Network.BEP20), "0x7De4A907e428390c2B48920aF0417A97F84cCB14" }
-        };
+            _configuration = configuration;
+            _logger = logger;
+            
+            // Initialize blockchain connections
+            _rpcUrls = new Dictionary<Network, string>
+            {
+                { Network.Ethereum, $"https://mainnet.infura.io/v3/{_configuration["INFURA_API_KEY"]}" },
+                { Network.PolygonPOS, $"https://polygon-mainnet.infura.io/v3/{_configuration["INFURA_API_KEY"]}" }
+            };
 
-        // Mock initial balance for demo purposes
-        private decimal _userBalance = 1587.44m;
-        // Placeholder for contract address - replace with actual address
-        private const string USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+            // Initialize Web3 for Ethereum/Polygon
+            _web3 = new Web3(_rpcUrls[Network.Ethereum]);
 
-
-        public CryptoService()
-        {
-            // Initialize with some example transactions for development
-            // In a real app, this would be loaded from a database
-            // Intentionally left empty to avoid mocked data in production
+            // Initialize HD wallet
+            string seedPhrase = _configuration["WALLET_SEED_PHRASE"];
+            _wallet = new Wallet(seedPhrase, "");
         }
 
         public async Task<bool> IsNetworkOperational(Network network)
         {
-            try {
-                switch(network) {
-                    case Network.Ethereum:
-                    case Network.PolygonPOS:
-                        // Replace with actual Ethereum service implementation
-                        var ethService = new EthereumService(null, null); // Requires proper initialization
-                        return await ethService.GetBalance("0x0000000000000000000000000000000000000000", network.ToString()) != null;
-                    case Network.Tron:
-                        // Replace with actual Tron service implementation
-                        var tronService = new TronService(null, null, null); // Requires proper initialization
-                        return await tronService.GetTokenBalance("TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW", USDT_CONTRACT_ADDRESS) >= 0;
-                    default:
-                        return false;
+            try
+            {
+                if (_rpcUrls.TryGetValue(network, out string rpcUrl))
+                {
+                    var web3 = new Web3(rpcUrl);
+                    var blockNumber = await web3.Eth.Blocks.GetBlockNumber.SendRequestAsync();
+                    return blockNumber.Value > 0;
                 }
+                return false;
             }
-            catch {
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error checking network status for {network}");
                 return false;
             }
         }
 
         public async Task<Transaction> CreateDepositRequest(DepositRequest request)
         {
-            if (!await IsNetworkOperational(request.Network))
+            try
             {
-                throw new InvalidOperationException($"Network {request.Network} is currently unavailable.");
+                var address = await GenerateDepositAddressAsync(request.Token, request.Network);
+                
+                var transaction = new Transaction
+                {
+                    Type = TransactionType.Deposit,
+                    Amount = request.Amount,
+                    Token = request.Token,
+                    Network = request.Network,
+                    WalletAddress = address,
+                    Status = TransactionStatus.AwaitingPayment,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                // Here you would typically save to a database
+                return transaction;
             }
-            var transaction = new Transaction
+            catch (Exception ex)
             {
-                Type = TransactionType.Deposit,
-                Amount = request.Amount,
-                Token = request.Token,
-                Network = request.Network,
-                WalletAddress = GenerateDepositAddress(request.Token, request.Network),
-                TXID = $"{new Random().Next(1000000, 9999999)}",
-                Status = TransactionStatus.AwaitingPayment
-            };
-
-            _transactions.Add(transaction);
-            return await Task.FromResult(transaction);
-        }
-
-        public async Task<Transaction> CreateWithdrawalRequest(WithdrawalRequest request)
-        {
-            // Validate available balance
-            if (request.Amount > _userBalance)
-            {
-                throw new InvalidOperationException("Insufficient balance for withdrawal");
+                _logger.LogError(ex, "Error creating deposit request");
+                throw;
             }
+        }
 
-            var transaction = new Transaction
+        private async Task<string> GenerateDepositAddressAsync(TokenType token, Network network)
+        {
+            try
             {
-                Type = TransactionType.Withdrawal,
-                Amount = request.Amount,
-                Token = request.Token,
-                Network = request.Network,
-                WalletAddress = request.WalletAddress,
-                Status = TransactionStatus.AwaitingPayment
-            };
-
-            _transactions.Add(transaction);
-            _userBalance -= request.Amount;
-
-            return await Task.FromResult(transaction);
-        }
-
-        public async Task<IEnumerable<Transaction>> GetUserTransactions()
-        {
-            return await Task.FromResult(_transactions.OrderByDescending(t => t.CreatedAt));
-        }
-
-        public async Task<Transaction> GetTransaction(Guid id)
-        {
-            return await Task.FromResult(_transactions.FirstOrDefault(t => t.Id == id));
+                switch (network)
+                {
+                    case Network.Ethereum:
+                    case Network.PolygonPOS:
+                        var account = _wallet.GetAccount(0);
+                        return account.Address;
+                        
+                    case Network.Tron:
+                        var tronService = new TronService(null, null, _logger, _configuration);
+                        return await tronService.GenerateDepositAddress(token.ToString(), 0);
+                        
+                    default:
+                        throw new NotSupportedException($"Network {network} not supported");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating deposit address");
+                throw;
+            }
         }
 
         public async Task<decimal> GetAvailableBalance()
         {
-            return await Task.FromResult(_userBalance);
+            try
+            {
+                var account = _wallet.GetAccount(0);
+                var balance = await _web3.Eth.GetBalance.SendRequestAsync(account.Address);
+                return Web3.Convert.FromWei(balance);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting balance");
+                throw;
+            }
         }
 
-        public string GenerateDepositAddress(TokenType token, Network network)
+        public async Task<Transaction> GetTransaction(Guid id)
         {
-            // In a real implementation, this would generate a unique deposit address
-            // For demo purposes, we're using pre-defined addresses
-            if (_depositAddresses.TryGetValue((token, network), out string address))
-            {
-                return address;
-            }
+            // In a real implementation, this would fetch from a database
+            throw new NotImplementedException("Database integration required");
+        }
 
-            // Fallback to a random address if not found
-            return $"0x{Guid.NewGuid().ToString().Replace("-", "").Substring(0, 40)}";
+        public async Task<IEnumerable<Transaction>> GetUserTransactions()
+        {
+            // In a real implementation, this would fetch from a database
+            throw new NotImplementedException("Database integration required");
+        }
+
+        public async Task<Transaction> CreateWithdrawalRequest(WithdrawalRequest request)
+        {
+            try
+            {
+                var balance = await GetAvailableBalance();
+                if (request.Amount > balance)
+                {
+                    throw new InvalidOperationException("Insufficient balance");
+                }
+
+                var transaction = new Transaction
+                {
+                    Type = TransactionType.Withdrawal,
+                    Amount = request.Amount,
+                    Token = request.Token,
+                    Network = request.Network,
+                    WalletAddress = request.WalletAddress,
+                    Status = TransactionStatus.Pending,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                // Here you would typically save to a database and initiate the withdrawal
+                return transaction;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating withdrawal request");
+                throw;
+            }
         }
     }
 }

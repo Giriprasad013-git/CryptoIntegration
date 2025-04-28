@@ -2,7 +2,21 @@ using CryptoDepositApp.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http;
 
+using System.Threading.RateLimiting;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter("fixed", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 10,
+                Window = TimeSpan.FromSeconds(10)
+            }));
+});
 
 // Add services to the container
 builder.Services.AddControllers();
