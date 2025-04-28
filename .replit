@@ -6,7 +6,7 @@ channel = "stable-24_05"
 packages = ["jq"]
 
 [workflows]
-runButton = "Project"
+runButton = "Development"
 
 [[workflows.workflow]]
 name = "Project"
@@ -50,6 +50,19 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "cd ClientApp && npm start"
 waitForPort = 3000
+
+[[workflows.workflow]]
+name = "Development"
+author = 39482105
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "dotnet run --urls http://0.0.0.0:5000"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd ClientApp && npm start"
 
 [deployment]
 run = ["sh", "-c", "node index.js"]
