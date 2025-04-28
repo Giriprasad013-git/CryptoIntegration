@@ -6,7 +6,7 @@ channel = "stable-24_05"
 packages = ["jq"]
 
 [workflows]
-runButton = "Development"
+runButton = "Backend"
 
 [[workflows.workflow]]
 name = "Project"
@@ -63,6 +63,15 @@ args = "dotnet run --urls http://0.0.0.0:5000"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd ClientApp && npm start"
+
+[[workflows.workflow]]
+name = "Backend"
+author = 39482105
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "dotnet run --urls http://0.0.0.0:5000"
 
 [deployment]
 run = ["sh", "-c", "node index.js"]
